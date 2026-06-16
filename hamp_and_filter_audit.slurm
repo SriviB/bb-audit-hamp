@@ -11,11 +11,10 @@
 
 module load cuda/12.4
 
-set -e
-cd $WORK
+cd /work/09636/srivibalaji/vista/bb-audit-hamp
 eval "$(conda shell.bash hook)"
-conda activate misleading-privacy-evals
-cd bb-audit-dpsgd
+conda activate bb-audit-hamp
+
 
 mkdir -p status
 

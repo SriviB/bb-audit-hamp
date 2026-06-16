@@ -24,7 +24,7 @@ RUN="train_0"
 
 echo "Running sanity attack with C=${LOGREG_C}"
 
-conda activate misleading-privacy-evals
+conda activate bb-audit-hamp
 
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 

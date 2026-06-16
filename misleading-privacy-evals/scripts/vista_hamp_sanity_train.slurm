@@ -28,7 +28,7 @@ RUN="train_0"
 
 echo "Training shadow model ${SHADOW_MODEL_IDX} / ${NUM_SHADOW}"
 
-conda activate misleading-privacy-evals
+conda activate bb-audit-hamp
 
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 export DOWNLOAD_DATA=1

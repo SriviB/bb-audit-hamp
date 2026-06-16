@@ -26,7 +26,7 @@ echo "Running attack with C=${LOGREG_C}"
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 
 # Use absolute path to python to bypass conda shell activation issues in Slurm
-PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/misleading-privacy-evals/bin/python"
+PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/bin/python"
 
 $PYTHON_BIN -u -m experiments.hamp \
   --experiment-dir "${EXPERIMENT_DIR}" \

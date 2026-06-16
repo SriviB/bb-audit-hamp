@@ -29,7 +29,7 @@ export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 export DOWNLOAD_DATA=1
 
 # Use absolute path to python to bypass conda shell activation issues in Slurm
-PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/misleading-privacy-evals/bin/python"
+PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/bin/python"
 
 # Calculate start index for this task (each task trains 4 models sequentially)
 START_IDX=$((SLURM_ARRAY_TASK_ID * 4))
