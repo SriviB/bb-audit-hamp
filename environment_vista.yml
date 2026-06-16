@@ -5,8 +5,8 @@ channels:
   - conda-forge
 dependencies:
   - python=3.11
-  - pytorch
-  - torchvision
+  - pytorch=2.1.0
+  - torchvision=0.16.0
   - numpy=1.26
   - matplotlib=3.8
   - scipy=1.11
