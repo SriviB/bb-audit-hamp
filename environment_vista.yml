@@ -5,8 +5,6 @@ channels:
   - conda-forge
 dependencies:
   - python=3.11
-  - pytorch=2.1.0
-  - torchvision=0.16.0
   - numpy=1.26
   - matplotlib=3.8
   - scipy=1.11
@@ -20,7 +18,10 @@ dependencies:
   - ipywidgets=8.1
   - pip
   - pip:
-      - torchdata==0.7.0
+      - torch==2.5.1
+      - torchvision==0.20.1
+      - torchdata==0.7.1
       - opacus==1.4.0
-      - open-clip-torch==2.23.0
+      - open-clip-torch==3.3.0
+
 
