@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+
+# Conda environments
+.conda/
+env/
+venv/
+
+# ML checkpoints, temporary outputs, and logs
+experiments/
+status/*.o
+status/*.e
+*.pt
+*.pth
