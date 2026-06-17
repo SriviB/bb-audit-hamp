@@ -74,7 +74,7 @@ def compute_p_from_target_entropy(gamma, num_classes):
             h -= (C - 1) * q * np.log(q + 1e-10)
         return h
 
-    lo, hi = 0.0, 1.0
+    lo, hi = 1.0 / num_classes, 1.0
     for _ in range(100):
         mid = (lo + hi) / 2.0
         h = entropy(mid, num_classes)
