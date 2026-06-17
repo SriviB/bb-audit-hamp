@@ -18,14 +18,18 @@ dependencies:
   - ipywidgets=8.1
   - pip
   - pip:
-      - --extra-index-url https://download.pytorch.org/whl/cu124
+      - --index-url https://download.pytorch.org/whl/cu124
+      - --extra-index-url https://pypi.org/simple
       - torch==2.5.1
       - torchvision==0.20.1
+
       - torchdata==0.7.1
       - opacus==1.4.0
       - open-clip-torch==3.3.0
       - privacy-estimates
       - statsmodels
+      - numpy<2.0
+
 
 
 
