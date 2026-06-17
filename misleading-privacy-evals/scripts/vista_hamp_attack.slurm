@@ -23,6 +23,7 @@ EXPERIMENT="label_noise"
 RUN="train_4"
 
 echo "Running attack with C=${LOGREG_C}"
+export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 
 # Use absolute path to python to bypass conda shell activation issues in Slurm

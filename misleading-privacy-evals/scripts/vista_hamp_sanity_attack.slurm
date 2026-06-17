@@ -25,6 +25,8 @@ RUN="train_0"
 echo "Running sanity attack with C=${LOGREG_C}"
 
 conda activate bb-audit-hamp
+export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
+
 
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 

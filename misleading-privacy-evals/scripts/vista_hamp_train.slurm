@@ -25,6 +25,7 @@ EXPERIMENT="label_noise"
 RUN="train_4"
 
 echo "Training shadow models for array task ${SLURM_ARRAY_TASK_ID}"
+export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 export DOWNLOAD_DATA=1
 

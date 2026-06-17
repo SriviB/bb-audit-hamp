@@ -14,6 +14,8 @@ module load cuda/12.4
 cd /work/09636/srivibalaji/vista/bb-audit-hamp
 eval "$(conda shell.bash hook)"
 conda activate bb-audit-hamp
+export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
+
 
 
 mkdir -p status
