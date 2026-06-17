@@ -23,5 +23,7 @@ dependencies:
       - torchdata==0.7.1
       - opacus==1.4.0
       - open-clip-torch==3.3.0
+      - privacy-estimates
+
 
 
