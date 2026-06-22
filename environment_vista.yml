@@ -30,7 +30,8 @@ dependencies:
       - statsmodels
       - numpy<2.0
       - databricks-cli<1
-      - setuptools
+      - setuptools<70
+
 
 
 
