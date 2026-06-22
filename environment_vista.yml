@@ -29,6 +29,8 @@ dependencies:
       - privacy-estimates
       - statsmodels
       - numpy<2.0
+      - databricks-cli<1
+
 
 
 

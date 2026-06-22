@@ -24,13 +24,12 @@ RUN="train_0"
 
 echo "Running sanity attack with C=${LOGREG_C}"
 
-conda activate bb-audit-hamp
 export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
-
-
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 
-python -u -m experiments.hamp \
+PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/bin/python"
+
+$PYTHON_BIN -u -m experiments.hamp \
   --experiment-dir "${EXPERIMENT_DIR}" \
   --experiment "${EXPERIMENT}" \
   --data-dir "${DATA_DIR}" \

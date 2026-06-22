@@ -28,14 +28,13 @@ RUN="train_0"
 
 echo "Training shadow model ${SHADOW_MODEL_IDX} / ${NUM_SHADOW}"
 
-conda activate bb-audit-hamp
 export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
-
-
 export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
 export DOWNLOAD_DATA=1
 
-python -u -m experiments.hamp \
+PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/bin/python"
+
+$PYTHON_BIN -u -m experiments.hamp \
   --experiment-dir "${EXPERIMENT_DIR}" \
   --experiment "${EXPERIMENT}" \
   --data-dir "${DATA_DIR}" \
