@@ -20,9 +20,9 @@ mkdir -p status
 
 DATA_NAME="cifar10"
 MODEL_NAME="cnn"
-N_EPOCHS=100
-BATCH_SIZE=3125
-BLOCK_SIZE=3125
+N_EPOCHS=200
+BATCH_SIZE=64
+BLOCK_SIZE=64
 NUM_SHADOW=64
 NUM_CANARIES=500
 SEED=0
@@ -45,7 +45,7 @@ IFS='|' read -r DEFENSE_TYPE OUT_NAME <<< "${experiments[$SLURM_ARRAY_TASK_ID]}"
 # Select learning rates and arguments based on the defense
 if [ "${DEFENSE_TYPE}" = "filter" ]; then
     LR="3.0"
-    EXTRA_ARGS="--epsilon 10.0 --max_grad_norm 1.0 --defense_k 5 --defense_score_fn grad_norm_unclipped --defense_score_norm linf"
+    EXTRA_ARGS="--max_grad_norm 1.0 --defense_k 5 --defense_score_fn grad_norm_unclipped --defense_score_norm linf"
 elif [ "${DEFENSE_TYPE}" = "hamp" ]; then
     LR="0.5"
     EXTRA_ARGS="--hamp_gamma 0.9997 --hamp_alpha_entropy 0.005"
