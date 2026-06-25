@@ -293,9 +293,16 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
     dataset = IndexedTensorDataset(X_tensor, y_tensor)
     num_classes = int(y_tensor.max().item()) + 1
 
-    if defense_type in ('none', 'hamp', 'hamp_testonly'):
+    sampling = getattr(args, 'sampling', 'poisson')
+    n_samples = len(X_tensor)
+    if sampling == 'poisson':
+        _poisson_q = batch_size / n_samples
+        _poisson_n_batches = (n_samples + batch_size - 1) // batch_size
+        loader = None
+    else:
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
+    if defense_type in ('none', 'hamp', 'hamp_testonly'):
         hamp_gamma = getattr(args, 'hamp_gamma', 0.95)
         hamp_alpha_entropy = getattr(args, 'hamp_alpha_entropy', 1.0)
 
@@ -303,7 +310,19 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
             p = compute_p_from_target_entropy(hamp_gamma, num_classes)
 
         for epoch in range(args.n_epochs):
-            for X_b, y_b, _ in loader:
+            if sampling == 'poisson':
+                def _poisson_iter():
+                    for _ in range(_poisson_n_batches):
+                        mask = torch.rand(n_samples) < _poisson_q
+                        idx = torch.where(mask)[0]
+                        if len(idx) == 0:
+                            continue
+                        yield X_tensor[idx], y_tensor[idx], idx
+                batch_iter = _poisson_iter()
+            else:
+                batch_iter = loader
+
+            for X_b, y_b, _ in batch_iter:
                 X_b, y_b = X_b.to(device), y_b.to(device)
                 optimizer.zero_grad()
                 logits = model(X_b)
@@ -337,7 +356,14 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
         # 0 = active, 1 = flagged for gradient ascent, 2 = permanently dropped
         drop_mask = np.zeros(len(dataset), dtype=np.int8)
 
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        sampling = getattr(args, 'sampling', 'poisson')
+        n_samples = len(dataset)
+        if sampling == 'poisson':
+            _poisson_q = batch_size / n_samples
+            _poisson_n_batches = (n_samples + batch_size - 1) // batch_size
+            loader = None
+        else:
+            loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
         # Lazy projection matrix state (populated inside clip_and_accum_grads)
         grad_dir_proj = rand_proj_mat = maxmin_proj_mat = None
@@ -352,7 +378,19 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
         for epoch in range(args.n_epochs):
             optimizer.zero_grad()
 
-            for curr_X, curr_y, global_indices in loader:
+            if sampling == 'poisson':
+                def _poisson_iter():
+                    for _ in range(_poisson_n_batches):
+                        mask = torch.rand(n_samples) < _poisson_q
+                        idx = torch.where(mask)[0]
+                        if len(idx) == 0:
+                            continue
+                        yield X_tensor[idx], y_tensor[idx], idx
+                batch_iter = _poisson_iter()
+            else:
+                batch_iter = loader
+
+            for curr_X, curr_y, global_indices in batch_iter:
                 curr_X = curr_X.to(device)
                 curr_y = curr_y.to(device)
                 global_indices = global_indices.to(device)
