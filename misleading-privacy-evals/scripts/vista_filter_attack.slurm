@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH -J filter-sanity-attack
-#SBATCH -o status/filter_sanity_attack_%j.o
-#SBATCH -e status/filter_sanity_attack_%j.e
+#SBATCH -J filter-attack
+#SBATCH -o status/filter_attack_%j.o
+#SBATCH -e status/filter_attack_%j.e
 #SBATCH -p gh
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
@@ -9,8 +9,8 @@
 #SBATCH -A ASC25081
 
 SEED=0
-NUM_SHADOW=2
-NUM_CANARIES=10
+NUM_SHADOW=64
+NUM_CANARIES=500
 CANARY_TYPE="label_noise"
 NUM_POISON=0
 POISON_TYPE="random_images"
@@ -18,12 +18,12 @@ LOGREG_C="1.0"
 
 ROOT_DIR="/work/09636/srivibalaji/vista/bb-audit-hamp"
 REPO_DIR="${ROOT_DIR}/misleading-privacy-evals"
-EXPERIMENT_DIR="${REPO_DIR}/experiments_sanity"
+EXPERIMENT_DIR="${REPO_DIR}/experiments"
 DATA_DIR="${REPO_DIR}/data"
-EXPERIMENT="filter_noise_sanity"
-RUN="filter_train_sanity"
+EXPERIMENT="filter_noise"
+RUN="filter_train_1"
 
-echo "Running sanity attack with C=${LOGREG_C}"
+echo "Running attack with C=${LOGREG_C}"
 export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
 # Include ROOT_DIR so we can import utils.dpsgd
 export PYTHONPATH="${PYTHONPATH}:${ROOT_DIR}:${REPO_DIR}/src"
