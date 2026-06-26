@@ -541,7 +541,7 @@ def _train_model(
     y_tensor = train_data.targets
 
     # Define standard CE loss (reduction is handled per-sample inside clip_and_accum_grads)
-    criterion = torch.nn.CrossEntropyLoss(reduction='none')
+    criterion = torch.nn.CrossEntropyLoss()
 
     model.train()
     rng_loader_seeds = np.random.default_rng(seed=training_seed)
