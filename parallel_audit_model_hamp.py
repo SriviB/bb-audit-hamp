@@ -50,18 +50,17 @@ os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 # HAMP Helper Functions
 # ============================================================================
 
-def compute_p_from_target_entropy(gamma, num_classes):
+def compute_p_from_target_entropy(target_entropy, num_classes):
     """
-    Binary search for p such that entropy of [p, q, q, ..., q] equals gamma * log(C).
+    Binary search for p such that entropy of [p, q, q, ..., q] equals target_entropy.
 
     Args:
-        gamma: target entropy as fraction of max entropy (0-1)
+        target_entropy: target entropy in nats
         num_classes: number of classes C
 
     Returns:
         p: probability for correct class
     """
-    target_entropy = gamma * np.log(num_classes)
 
     def entropy(p, C):
         if p <= 0 or p > 1:
@@ -117,7 +116,7 @@ def kl_divergence_with_entropy_regularization(logits, soft_labels, alpha_entropy
     kl_loss = F.kl_div(
         F.log_softmax(logits, dim=1),
         soft_labels,
-        reduction='batchmean'
+        reduction='mean'
     )
 
     # Entropy regularization (negative entropy since we subtract)
