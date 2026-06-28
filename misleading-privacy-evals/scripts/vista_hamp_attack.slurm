@@ -8,13 +8,13 @@
 #SBATCH -t 1:00:00
 #SBATCH -A ASC25081
 
-SEED=0
+SEED=42
 NUM_SHADOW=64
 NUM_CANARIES=500
 CANARY_TYPE="label_noise"
 NUM_POISON=0
 POISON_TYPE="random_images"
-LOGREG_C="10.0"
+LOGREG_C="1.0"
 
 REPO_DIR="/work/09636/srivibalaji/vista/bb-audit-hamp/misleading-privacy-evals"
 EXPERIMENT_DIR="${REPO_DIR}/experiments"
@@ -23,13 +23,18 @@ EXPERIMENT="label_noise"
 RUN="train_4"
 
 echo "Running attack with C=${LOGREG_C}"
-export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
-export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
+export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/misleading-privacy-evals/lib:$LD_LIBRARY_PATH"
+export PYTHONPATH="${PYTHONPATH}:/work/09636/srivibalaji/vista/bb-audit-hamp/misleading-privacy-evals/src"
+export MLFLOW_ALLOW_FILE_STORE=true
 
-# Use absolute path to python to bypass conda shell activation issues in Slurm
-PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/bin/python"
+# Activate Conda environment
+eval "$(conda shell.bash hook)"
+conda activate misleading-privacy-evals
 
-$PYTHON_BIN -u -m experiments.hamp \
+# Run from misleading-privacy-evals/ to prevent local models/ folder import collision
+cd "${REPO_DIR}"
+
+python -u -m experiments.hamp \
   --experiment-dir "${EXPERIMENT_DIR}" \
   --experiment "${EXPERIMENT}" \
   --data-dir "${DATA_DIR}" \

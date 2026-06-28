@@ -9,7 +9,7 @@
 #SBATCH -A ASC25081
 #SBATCH --array=0-15
 
-SEED=0
+SEED=42
 NUM_SHADOW=64
 NUM_CANARIES=500
 CANARY_TYPE="label_noise"
@@ -25,12 +25,16 @@ EXPERIMENT="label_noise"
 RUN="train_4"
 
 echo "Training shadow models for array task ${SLURM_ARRAY_TASK_ID}"
-export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/lib:$LD_LIBRARY_PATH"
-export PYTHONPATH="${PYTHONPATH}:${REPO_DIR}/src"
-export DOWNLOAD_DATA=1
+export LD_LIBRARY_PATH="/work/09636/srivibalaji/miniconda3/envs/misleading-privacy-evals/lib:$LD_LIBRARY_PATH"
+export PYTHONPATH="${PYTHONPATH}:/work/09636/srivibalaji/vista/bb-audit-hamp/misleading-privacy-evals/src"
+export MLFLOW_ALLOW_FILE_STORE=true
 
-# Use absolute path to python to bypass conda shell activation issues in Slurm
-PYTHON_BIN="/work/09636/srivibalaji/miniconda3/envs/bb-audit-hamp/bin/python"
+# Activate Conda environment
+eval "$(conda shell.bash hook)"
+conda activate misleading-privacy-evals
+
+# Run from misleading-privacy-evals/ to prevent local models/ folder import collision
+cd "${REPO_DIR}"
 
 # Calculate start index for this task (each task trains 4 models sequentially)
 START_IDX=$((SLURM_ARRAY_TASK_ID * 4))
@@ -41,7 +45,7 @@ for i in {0..3}; do
   echo "Starting shadow model ${SHADOW_MODEL_IDX}..."
   echo "--------------------------------------------------"
   
-  $PYTHON_BIN -u -m experiments.hamp \
+  python -u -m experiments.hamp \
     --experiment-dir "${EXPERIMENT_DIR}" \
     --experiment "${EXPERIMENT}" \
     --data-dir "${DATA_DIR}" \
