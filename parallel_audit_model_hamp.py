@@ -345,6 +345,10 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
             p = compute_p_from_target_entropy(hamp_gamma, num_classes)
 
         for epoch in range(args.n_epochs):
+            epoch_loss = 0.0
+            epoch_correct = 0
+            epoch_samples = 0
+
             if sampling == 'poisson':
                 def _poisson_iter():
                     for _ in range(_poisson_n_batches):
@@ -376,6 +380,21 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
                 loss.backward()
                 optimizer.step()
                 lr_scheduler.step()
+
+                batch_size_actual = X_b.size(0)
+                epoch_loss += loss.item() * batch_size_actual
+                epoch_correct += (logits.argmax(dim=1) == y_b).sum().item()
+                epoch_samples += batch_size_actual
+
+            if epoch_samples > 0:
+                epoch_loss /= epoch_samples
+                epoch_acc = epoch_correct / epoch_samples
+            else:
+                epoch_loss = 0.0
+                epoch_acc = 0.0
+            current_lr = lr_scheduler.get_last_lr()[0]
+            if (epoch + 1) % 10 == 0 or epoch == 0:
+                print(f"  Epoch {epoch+1}/{args.n_epochs}  loss={epoch_loss:.4f}  acc={epoch_acc:.4f}  lr={current_lr:.6f}")
 
     elif defense_type == 'filter':
         block_size = args.block_size if args.block_size else batch_size
@@ -413,6 +432,8 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
 
         for epoch in range(args.n_epochs):
             optimizer.zero_grad()
+            epoch_loss = 0.0
+            epoch_samples = 0
 
             if sampling == 'poisson':
                 def _poisson_iter():
@@ -523,6 +544,13 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
                 lr_scheduler.step()
                 optimizer.zero_grad()
 
+                # Track loss for logging (use criterion on the batch)
+                with torch.no_grad():
+                    batch_logits = model(curr_X)
+                    batch_loss = criterion(batch_logits, curr_y)
+                    epoch_loss += batch_loss.item() * curr_X.size(0)
+                    epoch_samples += curr_X.size(0)
+
             # BUG FIX (Bug 3): flush all pending-ascent entries (1 → 2) before
             # building active_mask for the epoch-end per-class filter.  Without
             # this, samples flagged in the last batch of the epoch are still 1
@@ -542,6 +570,13 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
                     _, topk_idx = torch.topk(cls_scores, min(defense_k, len(cls_scores)))
                     drop_mask[cls_indices[topk_idx].numpy()] = 1
                 scores.fill(0)
+
+            n_dropped = int((drop_mask == 2).sum())
+            if epoch_samples > 0:
+                epoch_loss /= epoch_samples
+            current_lr = lr_scheduler.get_last_lr()[0]
+            if (epoch + 1) % 10 == 0 or epoch == 0:
+                print(f"  Epoch {epoch+1}/{args.n_epochs}  loss={epoch_loss:.4f}  dropped={n_dropped}  lr={current_lr:.6f}")
 
     return model
 
@@ -759,6 +794,8 @@ def main():
     init_model = Models[args.model_name](X.shape, out_dim=out_dim)
     if args.model_name == 'wideresnet':
         init_wideresnet(init_model)
+    elif args.model_name == 'wideresnet_np':
+        pass  # Use PyTorch default init to match misleading-privacy-evals
     else:
         xavier_init_model(init_model)
     torch.manual_seed(seed + rank)
