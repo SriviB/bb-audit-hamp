@@ -126,32 +126,60 @@ def kl_divergence_with_entropy_regularization(logits, soft_labels, alpha_entropy
     return kl_loss - alpha_entropy * entropy
 
 
-def rank_preserving_score_replacement(logits):
+def rank_preserving_score_replacement(model, logits, batch_shape, rng, device):
     """
-    HAMP test-time defense: randomize confidence while preserving predicted class order.
-
-    For each sample:
-    1. Get rank order of logits
-    2. Draw random values and sort them in the same order
-    3. Scatter back to get randomized logits
-
-    The argmax (top-1 prediction) is preserved; confidence is randomized.
+    HAMP test-time defense: randomize confidence by replacement with sorted logits 
+    from predictions on random noise, preserving argmax class prediction order.
+    Replicates the exact confidence randomization logic from experiments/hamp.py.
     """
-    B, C = logits.shape
+    # 1. Generate random sample of the same batch shape
+    batch_xs_random = []
+    for _ in range(batch_shape[0]):
+        batch_xs_random.append(rng.integers(0, 256, size=batch_shape[1:], dtype=np.uint8))
+    batch_xs_random = torch.from_numpy(np.stack(batch_xs_random)).float()
+    
+    # 2. Scale and normalize (CIFAR-10 stats)
+    CIFAR10_MEAN = torch.tensor([0.4914, 0.4822, 0.4465], device=device).view(1, 3, 1, 1)
+    CIFAR10_STD_DEV = torch.tensor([0.2023, 0.1994, 0.2010], device=device).view(1, 3, 1, 1)
+    batch_xs_random = batch_xs_random.to(device) / 255.0
+    batch_xs_random = (batch_xs_random - CIFAR10_MEAN) / CIFAR10_STD_DEV
+    
+    # 3. Predict on random sample to get noise logits
+    with torch.no_grad():
+        pred_logits_random = model(batch_xs_random).cpu()
+    
+    # 4. Apply test-time defense
+    pred_logits_traintime = logits.cpu().clone()
+    pred_logits_random = torch.sort(pred_logits_random, stable=True, dim=-1).values
+    assert pred_logits_random.dtype == pred_logits_random.dtype
+    assert torch.all(pred_logits_random.max(-1).values == pred_logits_random[..., -1])
 
-    # Get rank order
-    _, rank_indices = torch.sort(logits, dim=1)
+    # Make sure maxima of raw and random logits are unique per-sample to ensure test-time defense does not change label
+    # NB: This does not necessarily preserve top-k order for k > 1, but we only care about top-1 here
+    pred_logits_random[..., -1] += torch.finfo(pred_logits_random.dtype).eps  # min. pos. value s.t. x + eps > x
+    assert torch.all(pred_logits_random[..., -1].unsqueeze(-1) > pred_logits_random[..., :-1])
+    pred_labels_traintime = pred_logits_traintime.argmax(-1, keepdim=True)
+    pred_logits_traintime.scatter_add_(
+        -1,
+        index=pred_labels_traintime,
+        src=torch.tensor(torch.finfo(pred_logits_traintime.dtype).eps, dtype=pred_logits_traintime.dtype).expand(
+            pred_labels_traintime.size()
+        ),
+    )
+    num_classes = pred_logits_traintime.size(-1)
+    assert torch.all(
+        (pred_logits_traintime.max(-1, keepdim=True).values > pred_logits_traintime).int().sum(-1) == num_classes - 1
+    )
 
-    # Draw and sort random values
-    random_vals = torch.rand(B, C, device=logits.device, dtype=logits.dtype)
-    random_sorted = torch.argsort(random_vals, dim=1)
-
-    # Scatter back preserving rank order
-    result = torch.zeros_like(logits)
-    for i in range(B):
-        result[i, rank_indices[i]] = random_vals[i, random_sorted[i]]
-
-    return result
+    # Calculate defended predictions by reordering random logits
+    pred_label_order = torch.argsort(pred_logits_traintime, stable=True, dim=-1)
+    pred_logits_testtime = torch.empty_like(pred_logits_random)
+    pred_logits_testtime.scatter_(dim=-1, index=pred_label_order, src=pred_logits_random)
+    assert pred_logits_testtime.size() == pred_logits_traintime.size()
+    # This should always be true since both the maxima of raw and random logits are unique per-sample
+    assert torch.all(pred_logits_testtime.argmax(-1) == pred_logits_traintime.argmax(-1))
+    
+    return pred_logits_testtime.to(device)
 
 
 # ============================================================================
@@ -235,7 +263,7 @@ def generate_augmentations(x, num_augmentations, use_flip=True):
     return augmentations
 
 
-def generate_binary_correctness_vector(model, x, y, augmentations, device):
+def generate_binary_correctness_vector(model, x, y, augmentations, device, defense_type='none', rng=None):
     """
     Label-only attack: query model on augmentations and record correctness.
 
@@ -248,6 +276,8 @@ def generate_binary_correctness_vector(model, x, y, augmentations, device):
         y: true class (int)
         augmentations: list of augmented inputs, each shape (C, H, W)
         device: torch device
+        defense_type: defense type to determine if test-time HAMP randomization is applied
+        rng: np.random.Generator used for HAMP test-time randomization
 
     Returns:
         binary vector, shape (len(augmentations),) as numpy float32
@@ -259,6 +289,12 @@ def generate_binary_correctness_vector(model, x, y, augmentations, device):
         for aug in augmentations:
             aug = aug.to(device)
             logits = model(aug.unsqueeze(0))
+            
+            # Apply HAMP test-time confidence randomization if active
+            if defense_type in ('hamp', 'hamp_testonly') and rng is not None:
+                batch_shape = (1, aug.shape[0], aug.shape[1], aug.shape[2])
+                logits = rank_preserving_score_replacement(model, logits, batch_shape, rng, device)
+                
             pred = logits.argmax(dim=1).item()
             binary_vector.append(1.0 if pred == y else 0.0)
 
@@ -835,13 +871,20 @@ def main():
         model.eval()
         correctness_this_model = []
         use_flip = (args.data_name != 'mnist')
+        # Match the exact random seed and spawning sequence of experiments/hamp.py
+        shadow_seed = args.seed * (args.num_shadow + 1) + (shadow_idx + 1) # implemented this way in their codebase base.py in get_setting_seed()
+        parent_rng = np.random.default_rng(seed=shadow_seed)
+        rng_testtime, _ = parent_rng.spawn(2)
 
         with torch.no_grad():
             for c_idx in canary_indices:
                 cx = torch.from_numpy(X[c_idx]).float()
                 cy = int(y_noisy[c_idx])
                 augmentations = generate_augmentations(cx, 18, use_flip=use_flip)
-                binary_vec = generate_binary_correctness_vector(model, cx, cy, augmentations, device)
+                binary_vec = generate_binary_correctness_vector(
+                    model, cx, cy, augmentations, device,
+                    defense_type=args.defense_type, rng=rng_testtime
+                )
                 correctness_this_model.append(binary_vec)
 
         local_binary_vectors.append(np.array(correctness_this_model, dtype=np.float32))
