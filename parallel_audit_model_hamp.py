@@ -269,7 +269,7 @@ def generate_binary_correctness_vector(model, x, y, augmentations, device):
 # Training Functions
 # ============================================================================
 
-def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='none'):
+def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='none', momentum=None, weight_decay=None):
     """
     Train a model with optional HAMP or gradient-norm filter defense.
 
@@ -280,13 +280,26 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
         device: torch device
         args: argument namespace
         defense_type: 'none', 'hamp', 'hamp_testonly', or 'filter'
+        momentum: SGD momentum (optional)
+        weight_decay: SGD weight decay (optional)
 
     Returns:
         trained model
     """
     model.train()
     batch_size = args.batch_size if args.batch_size else 256
-    optimizer = optim.SGD(model.parameters(), lr=args.lr)
+    if momentum is None:
+        momentum = getattr(args, 'momentum', None)
+    if weight_decay is None:
+        weight_decay = getattr(args, 'weight_decay', None)
+
+    sgd_kwargs = {}
+    if momentum is not None:
+        sgd_kwargs['momentum'] = momentum
+    if weight_decay is not None:
+        sgd_kwargs['weight_decay'] = weight_decay
+
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, **sgd_kwargs)
 
     X_tensor = torch.from_numpy(X).float()
     y_tensor = torch.from_numpy(y).long()
@@ -299,8 +312,30 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
         _poisson_q = batch_size / n_samples
         _poisson_n_batches = (n_samples + batch_size - 1) // batch_size
         loader = None
+        num_steps_per_epoch = _poisson_n_batches
     else:
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        num_steps_per_epoch = len(loader)
+
+    num_steps_per_epoch = max(1, num_steps_per_epoch)
+
+    import warnings
+    warnings.filterwarnings(action="ignore", category=UserWarning, module="torch.optim.lr_scheduler")
+    lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+        optimizer,
+        schedulers=[
+            torch.optim.lr_scheduler.LinearLR(
+                optimizer,
+                start_factor=1.0 / num_steps_per_epoch,
+                end_factor=1.0,
+                total_iters=num_steps_per_epoch,
+            ),
+            torch.optim.lr_scheduler.MultiStepLR(
+                optimizer, milestones=[epoch * num_steps_per_epoch for epoch in (60, 120, 160)], gamma=0.2
+            ),
+        ],
+        milestones=[1 * num_steps_per_epoch],
+    )
 
     if defense_type in ('none', 'hamp', 'hamp_testonly'):
         hamp_gamma = getattr(args, 'hamp_gamma', 0.95)
@@ -340,6 +375,7 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
 
                 loss.backward()
                 optimizer.step()
+                lr_scheduler.step()
 
     elif defense_type == 'filter':
         block_size = args.block_size if args.block_size else batch_size
@@ -484,6 +520,7 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
                             param.grad.copy_(grad)
 
                 optimizer.step()
+                lr_scheduler.step()
                 optimizer.zero_grad()
 
             # BUG FIX (Bug 3): flush all pending-ascent entries (1 → 2) before
@@ -637,6 +674,10 @@ def main():
                         help='Number of canaries to audit')
     parser.add_argument('--logreg_c', type=float, default=1.0,
                         help='Logistic regression regularization parameter C')
+    parser.add_argument('--momentum', type=float, default=None,
+                        help='SGD momentum')
+    parser.add_argument('--weight_decay', type=float, default=None,
+                        help='SGD weight decay')
 
     args = parser.parse_args()
 
@@ -743,7 +784,9 @@ def main():
         model.to(device)
 
         train_model(model, X_train, y_train, None, None, device, args,
-                    defense_type=args.defense_type)
+                    defense_type=args.defense_type,
+                    momentum=args.momentum,
+                    weight_decay=args.weight_decay)
 
         # Compute train/test accuracy of this shadow model
         train_acc = test_model(model, torch.from_numpy(X_train).float(), torch.from_numpy(y_train).long())
