@@ -35,7 +35,7 @@ srun --ntasks=$SLURM_NTASKS --nodes=$SLURM_JOB_NUM_NODES bash -c '
     --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
     parallel_audit_model_hamp.py \
     --data_name cifar10 \
-    --model_name wideresnet_np \
+    --model_name wideresnet \
     --defense_type filter \
     --target_type mislabeled \
     --num_shadow 64 \
