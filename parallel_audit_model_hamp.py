@@ -843,7 +843,25 @@ def main():
     local_train_accs = []
     local_test_accs = []
 
+    output_dir = Path(args.out)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_dir = output_dir / "checkpoints"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
     for shadow_idx in my_shadow_models:
+        ckpt_path = checkpoint_dir / f"shadow_{shadow_idx}.npz"
+        if ckpt_path.exists():
+            if is_rank_zero:
+                print(f"Shadow model {shadow_idx + 1}/{args.num_shadow} already trained. Loading from checkpoint...")
+            data = np.load(ckpt_path)
+            train_acc = float(data["train_acc"])
+            test_acc = float(data["test_acc"])
+            correctness_this_model = data["correctness_this_model"]
+            local_train_accs.append(train_acc)
+            local_test_accs.append(test_acc)
+            local_binary_vectors.append(correctness_this_model)
+            continue
+
         if is_rank_zero:
             print(f"Training shadow model {shadow_idx + 1}/{args.num_shadow}...")
 
@@ -886,7 +904,16 @@ def main():
                 )
                 correctness_this_model.append(binary_vec)
 
-        local_binary_vectors.append(np.array(correctness_this_model, dtype=np.float32))
+        correctness_this_model = np.array(correctness_this_model, dtype=np.float32)
+        local_binary_vectors.append(correctness_this_model)
+
+        # Save checkpoint immediately
+        np.savez(
+            ckpt_path,
+            train_acc=train_acc,
+            test_acc=test_acc,
+            correctness_this_model=correctness_this_model
+        )
 
     # Save per-rank results
     output_dir = Path(args.out)
