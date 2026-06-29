@@ -44,7 +44,6 @@ srun --ntasks=$SLURM_NTASKS --nodes=$SLURM_JOB_NUM_NODES bash -c '
     --batch_size 64 \
     --lr 0.5 \
     --momentum 0.99 \
-    --weight_decay 1e-5 \
     --seed 42 \
     --sampling shuffle \
     --max_grad_norm -1 \
