@@ -54,7 +54,7 @@ shadow_membership_mask[~canary_mask_arr] = True
 
 # Run audit with both C values
 print("=" * 60)
-for C_val, label in [(10.0, "Tuned C (10.0)"), (1.0, "Default C (1.0)")]:
+for C_val, label in [(1.0, "Default C (1.0)")]:
     result = audit_multi_canary(
         correctness_full, shadow_membership_mask, canary_indices,
         C_val, seed, alpha, delta

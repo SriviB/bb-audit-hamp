@@ -377,7 +377,8 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
         hamp_alpha_entropy = getattr(args, 'hamp_alpha_entropy', 1.0)
 
         if defense_type == 'hamp':
-            p = compute_p_from_target_entropy(hamp_gamma, num_classes)
+            target_entropy = hamp_gamma * np.log(num_classes)
+            p = compute_p_from_target_entropy(target_entropy, num_classes)
 
         for epoch in range(args.n_epochs):
             epoch_loss = 0.0
