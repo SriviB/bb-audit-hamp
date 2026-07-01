@@ -356,10 +356,25 @@ def train_model(model, X, y, canary_x, canary_y, device, args, defense_type='non
 
     import warnings
     warnings.filterwarnings(action="ignore", category=UserWarning, module="torch.optim.lr_scheduler")
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer,
+    #     milestones=[epoch * num_steps_per_epoch for epoch in (60, 90, 150)],
+    #     gamma=0.1
+    # )
+    lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
         optimizer,
-        milestones=[epoch * num_steps_per_epoch for epoch in (60, 90, 150)],
-        gamma=0.1
+        schedulers=[
+            torch.optim.lr_scheduler.LinearLR(
+                optimizer,
+                start_factor=1.0 / num_steps_per_epoch,
+                end_factor=1.0,
+                total_iters=num_steps_per_epoch,
+            ),
+            torch.optim.lr_scheduler.MultiStepLR(
+                optimizer, milestones=[epoch * num_steps_per_epoch for epoch in (60, 120, 160)], gamma=0.2
+            ),
+        ],
+        milestones=[1 * num_steps_per_epoch],
     )
 
     if defense_type in ('none', 'hamp', 'hamp_testonly'):
