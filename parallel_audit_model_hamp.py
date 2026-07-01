@@ -896,6 +896,9 @@ def main():
         local_train_accs.append(train_acc)
         local_test_accs.append(test_acc)
 
+        if is_rank_zero:
+            print(f"  Shadow model {shadow_idx + 1}/{args.num_shadow} - Final Train Acc: {train_acc*100:.2f}%, Final Test Acc: {test_acc*100:.2f}%")
+
         # Evaluate correctness vector over 18 augmentations for all canaries
         model.eval()
         correctness_this_model = []
