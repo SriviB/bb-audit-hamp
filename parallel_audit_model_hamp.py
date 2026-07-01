@@ -760,8 +760,6 @@ def main():
                         help='SGD momentum')
     parser.add_argument('--weight_decay', type=float, default=None,
                         help='SGD weight decay')
-    parser.add_argument('--train_only', action='store_true',
-                        help='Only train the shadow models and output train/test accuracy, skipping correctness vectors and the audit')
 
     args = parser.parse_args()
 
@@ -898,16 +896,6 @@ def main():
         local_train_accs.append(train_acc)
         local_test_accs.append(test_acc)
 
-        if getattr(args, 'train_only', False):
-            # Save checkpoint immediately with dummy correctness vector to save time
-            np.savez(
-                ckpt_path,
-                train_acc=train_acc,
-                test_acc=test_acc,
-                correctness_this_model=np.zeros((1, 1, 1), dtype=np.float32)
-            )
-            continue
-
         # Evaluate correctness vector over 18 augmentations for all canaries
         model.eval()
         correctness_this_model = []
@@ -948,13 +936,6 @@ def main():
         np.save(output_dir / f'shadow_indices_rank{rank}.npy', np.array(my_shadow_models))
         np.save(output_dir / f'train_accs_rank{rank}.npy', np.array(local_train_accs))
         np.save(output_dir / f'test_accs_rank{rank}.npy', np.array(local_test_accs))
-
-    if getattr(args, 'train_only', False):
-        if is_rank_zero:
-            print("Training completed. Skipping evaluation and audit due to --train_only.")
-        if world_size > 1:
-            dist.destroy_process_group()
-        return
 
     if world_size > 1:
         dist.barrier()
