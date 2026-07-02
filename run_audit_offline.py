@@ -10,7 +10,10 @@ sys.path.insert(0, "misleading-privacy-evals/src")
 sys.path.insert(0, ".")
 from parallel_audit_model_hamp import audit_multi_canary
 
-output_dir = Path("debug_audit_hamp_64")
+if len(sys.argv) > 1:
+    output_dir = Path(sys.argv[1])
+else:
+    output_dir = Path("debug_audit_hamp_64")
 num_shadow = 64
 num_canaries = 500
 num_ranks = 20
