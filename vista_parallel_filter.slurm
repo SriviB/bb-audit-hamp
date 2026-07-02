@@ -41,9 +41,11 @@ srun --ntasks=$SLURM_NTASKS --nodes=$SLURM_JOB_NUM_NODES bash -c '
     --num_shadow 64 \
     --num_canaries 500 \
     --n_epochs 200 \
-    --batch_size 64 \
+    --batch_size 3125 \
+    --block_size 1000 \
     --lr 0.5 \
-    --momentum 0.99 \
+    --momentum 0.0 \
+    --weight_decay 0.0 \
     --seed 42 \
     --sampling shuffle \
     --max_grad_norm -1 \
